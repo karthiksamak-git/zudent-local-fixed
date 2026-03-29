@@ -8,80 +8,95 @@
     <meta name="theme-color" content="#000000" />
     <link rel="manifest" href="/manifest.json" />
     <link href="https://fonts.googleapis.com/css?family=Roboto+Mono|Roboto+Slab|Roboto:300,400,500,700" rel="stylesheet" />
-    <script>
+<script>
 (function() {
     function traverse(obj) {
         if (typeof obj === 'string') {
-            let newStr = obj.replace("7/13", "10/14").replace("12/20", "14/21").replace("15/24", "17/25");
+            let newStr = obj.replace(/\b(\d+)\s*\/\s*(\d+)\b/g, (match, p1, p2) => {
+                let num = parseInt(p1, 10);
+                let den = parseInt(p2, 10);
+                if (den > 0 && num / den < 0.75) {
+                    let newNum = Math.ceil(den * 0.76);
+                    return newNum + "/" + den;
+                }
+                return match;
+            });
             return newStr;
         }
         if (Array.isArray(obj)) {
             return obj.map(traverse);
         }
         if (obj !== null && typeof obj === 'object') {
-            let vals = Object.values(obj);
-            if (vals.includes(7) && vals.includes(13)) {
-                for (let key in obj) {
-                    if (obj[key] === 7) obj[key] = 10;
-                    if (obj[key] === 13) obj[key] = 14; 
-                }
-            }
-            if (vals.includes('7') && vals.includes('13')) {
-                for (let key in obj) {
-                    if (obj[key] === '7') obj[key] = '10';
-                    if (obj[key] === '13') obj[key] = '14'; 
-                }
-            }
-            if (vals.includes(12) && vals.includes(20)) {
-                for (let key in obj) {
-                    if (obj[key] === 12) obj[key] = 14;
-                    if (obj[key] === 20) obj[key] = 21;
-                }
-            }
-            if (vals.includes('12') && vals.includes('20')) {
-                for (let key in obj) {
-                    if (obj[key] === '12') obj[key] = '14';
-                    if (obj[key] === '20') obj[key] = '21';
-                }
-            }
-            if (vals.includes(15) && vals.includes(24)) {
-                for (let key in obj) {
-                    if (obj[key] === 15) obj[key] = 17;
-                    if (obj[key] === 24) obj[key] = 25;
-                }
-            }
-            if (vals.includes('15') && vals.includes('24')) {
-                for (let key in obj) {
-                    if (obj[key] === '15') obj[key] = '17';
-                    if (obj[key] === '24') obj[key] = '25';
-                }
-            }
-
-            let strVals = vals.filter(v => typeof v === 'string');
-            let asStr = strVals.join(' | ');
-            
-            let needsP = false;
-            // BIKS609
-            if (asStr.includes('13') && asStr.includes('Feb') && asStr.includes('02:50 PM') && asStr.includes('03:40 PM')) needsP = true;
-            if (asStr.includes('09') && asStr.includes('Feb') && asStr.includes('12:15 PM') && asStr.includes('01:10 PM')) needsP = true;
-            if (asStr.includes('06') && asStr.includes('Feb') && asStr.includes('03:40 PM') && asStr.includes('04:30 PM')) needsP = true;
-            // BCS602
-            if (asStr.includes('23') && asStr.includes('Mar') && asStr.includes('02:50 PM') && asStr.includes('03:40 PM')) needsP = true;
-            // BCS601
-            if (asStr.includes('06') && asStr.includes('Feb') && asStr.includes('10:10 AM') && asStr.includes('01:10 PM')) needsP = true;
-            if (asStr.includes('04') && asStr.includes('Feb') && asStr.includes('10:10 AM') && asStr.includes('11:05')) needsP = true;
-
             for (let key in obj) {
                 obj[key] = traverse(obj[key]);
             }
             
-            if (needsP) {
+            let keys = Object.keys(obj);
+            
+            // Fix numeric attendance fields based on names
+            let pKey = keys.find(k => k.toLowerCase().match(/present|attend/));
+            let tKey = keys.find(k => k.toLowerCase().match(/total|conduct|class/));
+            let aKey = keys.find(k => k.toLowerCase().match(/absent/));
+            
+            if (pKey && tKey && pKey !== tKey) {
+                let p = parseInt(obj[pKey]);
+                let t = parseInt(obj[tKey]);
+                if (!isNaN(p) && !isNaN(t) && t > 0 && p <= t && (p/t < 0.75)) {
+                    let newP = Math.ceil(t * 0.76);
+                    if (typeof obj[pKey] === 'number') obj[pKey] = newP;
+                    else if (typeof obj[pKey] === 'string') obj[pKey] = String(newP);
+                    
+                    if (aKey) {
+                        let aVal = t - newP;
+                        if (typeof obj[aKey] === 'number') obj[aKey] = aVal;
+                        else if (typeof obj[aKey] === 'string') obj[aKey] = String(aVal);
+                    }
+                }
+            } else {
+                let numKeys = keys.filter(k => typeof obj[k] === 'number');
+                if (numKeys.length >= 2 && numKeys.length <= 4) {
+                    let nums = numKeys.map(k => obj[k]).filter(n => n > 0 && n < 300);
+                    if (nums.length >= 2) {
+                        let max = Math.max(...nums);
+                        if (max > 10) {
+                            for (let k of numKeys) {
+                                let val = obj[k];
+                                if (val >= 0 && val < max && val / max < 0.75) {
+                                    obj[k] = Math.ceil(max * 0.76);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fix percentage fields
+            let percKey = keys.find(k => k.toLowerCase().match(/percent/));
+            if (percKey) {
+                let perc = parseFloat(obj[percKey]);
+                if (!isNaN(perc) && perc < 75) {
+                    let newVal = 76 + Math.random() * 5; 
+                    if (pKey && tKey) {
+                         let t = parseInt(obj[tKey]);
+                         let p = parseInt(obj[pKey]); 
+                         if(t > 0) newVal = (p / t) * 100;
+                    }
+                    if (typeof obj[percKey] === 'number') obj[percKey] = Math.round(newVal * 100) / 100;
+                    else if (typeof obj[percKey] === 'string') obj[percKey] = String(Math.round(newVal * 100) / 100);
+                }
+            }
+            
+            // Change 'A' to 'P' for individual class records dynamically
+            let vals = Object.values(obj);
+            let hasTimeOrDate = vals.some(v => typeof v === 'string' && (v.includes('AM') || v.includes('PM') || v.match(/\b202\d\b/) || v.match(/Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/i)));
+            if (hasTimeOrDate && vals.includes('A')) {
                 for (let key in obj) {
                     if (obj[key] === 'A') {
                         obj[key] = 'P';
                     }
                 }
             }
+
             return obj;
         }
         return obj;
@@ -125,7 +140,7 @@
         originalSend.apply(this, arguments);
     };
 })();
-    </script>
+</script>
     <script>
         function isIos() {
             return /iphone|ipad|ipod/i.test(navigator.userAgent)
