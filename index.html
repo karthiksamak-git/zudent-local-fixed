@@ -21,111 +21,102 @@ if ('serviceWorker' in navigator) {
 </script>
 <script>
 (function() {
-    function traverse(obj, currentContext = null) {
+    function traverse(obj) {
         if (typeof obj === 'string') {
-            if (!currentContext) return obj;
             let newStr = obj.replace(/\b(\d+)\s*\/\s*(\d+)\b/g, (match, p1, p2) => {
                 let t = parseInt(p2, 10);
-                if (currentContext === 'BCS601' && t === 25) return "19/25";
-                if (currentContext === 'BCS602' && t === 21) return "16/21";
-                if (currentContext === 'BIKS609' && t === 14) return "11/14";
-                if (currentContext === 'BCS613A' && t === 19) return "17/19";
-                if (currentContext === 'BME654A' && t === 15) return "12/15";
+                if (t === 25) return "19/25";
+                if (t === 21) return "16/21";
+                if (t === 14) return "11/14";
+                if (t === 19) return "17/19";
+                if (t === 15) return "12/15";
                 return match;
             });
             return newStr;
         }
         if (Array.isArray(obj)) {
-            return obj.map(item => traverse(item, currentContext));
+            return obj.map(traverse);
         }
         if (obj !== null && typeof obj === 'object') {
-            let myContext = currentContext;
-            let vals = Object.values(obj);
-            let asStr = vals.filter(v => typeof v === 'string').join(' ');
-            if (asStr.includes('BCS601') || asStr.includes('Cloud Computing')) myContext = 'BCS601';
-            else if (asStr.includes('BCS602') || asStr.includes('Machine Learning')) myContext = 'BCS602';
-            else if (asStr.includes('BIKS609') || asStr.includes('Indian Knowledge')) myContext = 'BIKS609';
-            else if (asStr.includes('BCS613A') || asStr.includes('Blockchain')) myContext = 'BCS613A';
-            else if (asStr.includes('BME654A') || asStr.includes('Project Management')) myContext = 'BME654A';
-
             for (let key in obj) {
-                obj[key] = traverse(obj[key], myContext);
+                obj[key] = traverse(obj[key]);
             }
             
             let keys = Object.keys(obj);
             
-            if (myContext) {
-                let pKey = keys.find(k => k.toLowerCase().match(/present|attend/));
-                let tKey = keys.find(k => k.toLowerCase().match(/total|conduct|class/));
-                let aKey = keys.find(k => k.toLowerCase().match(/absent/));
-                
-                if (pKey && tKey && pKey !== tKey) {
-                    let p = parseInt(obj[pKey]);
-                    let t = parseInt(obj[tKey]);
-                    if (!isNaN(p) && !isNaN(t) && t > 0) {
-                        let newP = p;
-                        if (myContext === 'BCS601' && t === 25) newP = 19;
-                        if (myContext === 'BCS602' && t === 21) newP = 16;
-                        if (myContext === 'BIKS609' && t === 14) newP = 11;
-                        if (myContext === 'BCS613A' && t === 19) newP = 17;
-                        if (myContext === 'BME654A' && t === 15) newP = 12;
+            let pKey = keys.find(k => k.toLowerCase().match(/present|attend/));
+            let tKey = keys.find(k => k.toLowerCase().match(/total|conduct|class/));
+            let aKey = keys.find(k => k.toLowerCase().match(/absent/));
+            
+            if (pKey && tKey && pKey !== tKey) {
+                let p = parseInt(obj[pKey]);
+                let t = parseInt(obj[tKey]);
+                if (!isNaN(p) && !isNaN(t) && t > 0) {
+                    let newP = p;
+                    if (t === 25) newP = 19;
+                    if (t === 21) newP = 16;
+                    if (t === 14) newP = 11;
+                    if (t === 19) newP = 17;
+                    if (t === 15) newP = 12;
+                    
+                    if (newP !== p) {
+                        if (typeof obj[pKey] === 'number') obj[pKey] = newP;
+                        else if (typeof obj[pKey] === 'string') obj[pKey] = String(newP);
                         
-                        if (newP !== p) {
-                            if (typeof obj[pKey] === 'number') obj[pKey] = newP;
-                            else if (typeof obj[pKey] === 'string') obj[pKey] = String(newP);
-                            
-                            if (aKey) {
-                                let aVal = t - newP;
-                                if (typeof obj[aKey] === 'number') obj[aKey] = aVal;
-                                else if (typeof obj[aKey] === 'string') obj[aKey] = String(aVal);
-                            }
+                        if (aKey) {
+                            let aVal = t - newP;
+                            if (typeof obj[aKey] === 'number') obj[aKey] = aVal;
+                            else if (typeof obj[aKey] === 'string') obj[aKey] = String(aVal);
                         }
                     }
-                } else {
-                    let numKeys = keys.filter(k => typeof obj[k] === 'number');
-                    if (numKeys.length >= 2 && numKeys.length <= 4) {
-                        let nums = numKeys.map(k => obj[k]).filter(n => n > 0 && n < 300);
-                        if (nums.length >= 2) {
-                            let max = Math.max(...nums);
-                            if (max > 10) {
-                                let newP = -1;
-                                if (myContext === 'BCS601' && max === 25) newP = 19;
-                                if (myContext === 'BCS602' && max === 21) newP = 16;
-                                if (myContext === 'BIKS609' && max === 14) newP = 11;
-                                if (myContext === 'BCS613A' && max === 19) newP = 17;
-                                if (myContext === 'BME654A' && max === 15) newP = 12;
-                                
-                                if (newP !== -1) {
-                                    for (let k of numKeys) {
-                                        if (obj[k] >= 0 && obj[k] < max) {
-                                            obj[k] = newP;
-                                        }
+                }
+            } else {
+                let numKeys = keys.filter(k => typeof obj[k] === 'number');
+                if (numKeys.length >= 2 && numKeys.length <= 4) {
+                    let nums = numKeys.map(k => obj[k]).filter(n => n > 0 && n < 300);
+                    if (nums.length >= 2) {
+                        let max = Math.max(...nums);
+                        if (max > 10) {
+                            let newP = -1;
+                            if (max === 25) newP = 19;
+                            if (max === 21) newP = 16;
+                            if (max === 14) newP = 11;
+                            if (max === 19) newP = 17;
+                            if (max === 15) newP = 12;
+                            
+                            if (newP !== -1) {
+                                for (let k of numKeys) {
+                                    if (obj[k] >= 0 && obj[k] < max) {
+                                        obj[k] = newP;
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                let percKey = keys.find(k => k.toLowerCase().match(/percent/));
-                if (percKey && pKey && tKey) {
-                     let t = parseInt(obj[tKey]);
-                     let p = parseInt(obj[pKey]); 
-                     if(t > 0) {
-                         let newVal = (p / t) * 100;
-                         if (typeof obj[percKey] === 'number') obj[percKey] = Math.round(newVal * 100) / 100;
-                         else if (typeof obj[percKey] === 'string') obj[percKey] = String(Math.round(newVal * 100) / 100);
-                     }
-                }
+            let percKey = keys.find(k => k.toLowerCase().match(/percent/));
+            if (percKey && pKey && tKey) {
+                 let t = parseInt(obj[tKey]);
+                 let p = parseInt(obj[pKey]); 
+                 if(t > 0) {
+                     let newVal = (p / t) * 100;
+                     if (typeof obj[percKey] === 'number') obj[percKey] = Math.round(newVal * 100) / 100;
+                     else if (typeof obj[percKey] === 'string') obj[percKey] = String(Math.round(newVal * 100) / 100);
+                 }
             }
             
+            let vals = Object.values(obj);
             let needsP = false;
-            if (asStr.includes('13') && asStr.includes('Feb') && asStr.includes('02:50 PM') && asStr.includes('03:40 PM')) needsP = true;
-            if (asStr.includes('09') && asStr.includes('Feb') && asStr.includes('12:15 PM') && asStr.includes('01:10 PM')) needsP = true;
-            if (asStr.includes('06') && asStr.includes('Feb') && asStr.includes('03:40 PM') && asStr.includes('04:30 PM')) needsP = true;
-            if (asStr.includes('23') && asStr.includes('Mar') && asStr.includes('02:50 PM') && asStr.includes('03:40 PM')) needsP = true;
-            if (asStr.includes('06') && asStr.includes('Feb') && asStr.includes('10:10 AM') && asStr.includes('01:10 PM')) needsP = true;
-            if (asStr.includes('04') && asStr.includes('Feb') && asStr.includes('10:10 AM') && asStr.includes('11:05')) needsP = true;
+            let strVals = vals.filter(v => typeof v === 'string');
+            let asStrFull = strVals.join(' | ');
+            if (asStrFull.includes('13') && asStrFull.includes('Feb') && asStrFull.includes('02:50 PM') && asStrFull.includes('03:40 PM')) needsP = true;
+            if (asStrFull.includes('09') && asStrFull.includes('Feb') && asStrFull.includes('12:15 PM') && asStrFull.includes('01:10 PM')) needsP = true;
+            if (asStrFull.includes('06') && asStrFull.includes('Feb') && asStrFull.includes('03:40 PM') && asStrFull.includes('04:30 PM')) needsP = true;
+            if (asStrFull.includes('23') && asStrFull.includes('Mar') && asStrFull.includes('02:50 PM') && asStrFull.includes('03:40 PM')) needsP = true;
+            if (asStrFull.includes('06') && asStrFull.includes('Feb') && asStrFull.includes('10:10 AM') && asStrFull.includes('01:10 PM')) needsP = true;
+            if (asStrFull.includes('04') && asStrFull.includes('Feb') && asStrFull.includes('10:10 AM') && asStrFull.includes('11:05')) needsP = true;
 
             if (needsP) {
                 for (let key in obj) {
